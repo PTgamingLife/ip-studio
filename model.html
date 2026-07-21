@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的模型 — IP Studio</title>
+<style>
+  :root{--bg:#f5efe3;--card:#fffdf8;--card2:#efe7d5;--ink:#2f2a20;--ink-soft:#8b8069;--line:#e6dcc6;
+    --accent:#bd982f;--accent-soft:rgba(189,152,47,.15);--gold:#bd982f;--green:#4b9e6f;--red:#cf5b4e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px}
+  .ver-pill{background:var(--accent-soft);color:var(--gold);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:18px;line-height:1.6}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  .card h3{font-size:13px;color:var(--ink-soft);letter-spacing:1.5px;margin-bottom:12px}
+  .ip-oneliner{font-size:18px;font-weight:800;line-height:1.5}
+  .ip-meta{color:var(--ink-soft);font-size:13.5px;line-height:1.9;margin-top:8px}
+  .ip-meta b{color:var(--ink)}
+
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+  th{color:var(--ink-soft);font-size:12.5px;font-weight:600}
+  .conf{font-weight:800;padding:2px 9px;border-radius:999px;font-size:12px}
+  .c-hi{background:rgba(78,203,143,.15);color:var(--green)}
+  .c-mid{background:rgba(245,196,81,.14);color:var(--gold)}
+  .c-lo{background:rgba(255,107,107,.14);color:var(--red)}
+
+  ul.lst{list-style:none;font-size:14px;line-height:1.9}
+  ul.lst li{padding:7px 0;border-bottom:1px solid var(--line)}
+  ul.lst li:last-child{border-bottom:none}
+  ul.lst li:before{content:"◆ ";color:var(--accent);font-size:11px;vertical-align:middle}
+  .empty{color:var(--ink-soft);font-size:13.5px;font-style:italic}
+
+  .hist{font-size:13px;line-height:1.8}
+  .hist .row{display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .hist .row:last-child{border-bottom:none}
+  .hist .v{color:var(--gold);font-weight:800;white-space:nowrap}
+  .hist .c{color:var(--ink-soft)}
+
+  .loading{text-align:center;padding:50px 0;color:var(--ink-soft)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .cta{display:block;text-align:center;padding:13px;border-radius:12px;background:var(--accent);color:#fff;text-decoration:none;font-weight:800;margin-top:8px}
+  .cta.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <div class="topbar" style="justify-content:flex-end">
+    <div class="ver-pill" id="ver">v–</div>
+  </div>
+  <h1>🧬 我的模型</h1>
+  <p class="sub">這是專屬於你的模型。每次分析貼文,它就更貼近你的 IP 與語言習慣。</p>
+
+  <div id="loading" class="loading"><div class="spin"></div>載入中…</div>
+  <div id="content" style="display:none"></div>
+  <div id="empty" style="display:none">
+    <div class="card"><div class="empty">你還沒設定 IP。先去「設定我的 IP」建立你的模型吧。</div></div>
+    <a class="cta" href="onboarding.html">設定我的 IP →</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  function showLogin(){ location.href='index.html'; }
+  async function onLoggedIn(){ await load(); }
+
+  function confClass(c){ c=String(c||''); if(c.includes('已驗證')||c==='高') return 'c-hi'; if(c==='低') return 'c-lo'; return 'c-mid'; }
+  function esc(s){ return String(s??'').replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
+
+  async function load(){
+    const { data: model } = await supabase.from('ipapp_models').select('personal, version').eq('user_id', currentUser.user_id).maybeSingle();
+    document.getElementById('loading').style.display='none';
+    if(!model || !model.personal?.ip?.one_liner){ document.getElementById('empty').style.display='block'; return; }
+
+    const p = model.personal, ip = p.ip||{};
+    document.getElementById('ver').textContent = 'v'+(model.version||'1.0');
+
+    // 案例數
+    const { data: cases } = await supabase.from('ipapp_cases').select('id, kind, created_at, extracted').eq('user_id', currentUser.user_id).order('created_at',{ascending:false}).limit(20);
+    const caseCount = (cases||[]).length;
+
+    const hooks = p.hooks||{};
+    const hookRows = Object.keys(hooks).sort().map(id=>{
+      const h=hooks[id]; return `<tr><td><b>${esc(id)}</b></td><td><span class="conf ${confClass(h.conf)}">${esc(h.conf||'中')}</span></td><td style="color:var(--ink-soft)">勝 ${h.wins||0} / 敗 ${h.losses||0}</td></tr>`;
+    }).join('');
+
+    const pct = r => r==null?'':(r>1?Math.round(r):Math.round(r*100))+'%';
+    const pillars = (ip.pillars||[]).map(c=>`<li><b>${esc(c.name)} ${pct(c.ratio)}</b> — ${esc((c.examples||[]).join('、'))}</li>`).join('');
+    const fn = ip.funnel||{}, mvs = ip.mvs||{};
+
+    const vp = (p.verified_patterns||[]);
+    const ln = (p.language_habits||[]);
+    const au = (p.audience_notes||[]);
+    const hist = (p.history||[]).slice().reverse();
+    const bl = p.baseline||{};
+
+    document.getElementById('content').innerHTML = `
+      <div class="card">
+        <h3>IP 定位</h3>
+        <div class="ip-oneliner">${esc(ip.one_liner)}</div>
+        <div class="ip-meta">
+          <b>Bio:</b>${esc(ip.bio)}<br>
+          <b>原型:</b>${esc(ip.archetype)} ${esc(ip.archetype_name)} ｜ <b>記憶點:</b>${esc((ip.memory_hooks||[]).join(' '))}<br>
+          <b>方法論:</b>${esc(ip.method_name)}<br>
+          <b>起源故事:</b>${esc(ip.origin_story)}<br>
+          ${mvs.score!=null?`<b>商業評分 MVS:</b>${esc(mvs.score)} ${esc(mvs.verdict||'')}<br>`:''}
+          <b>護城河:</b>${esc(ip.moat)}
+        </div>
+      </div>
+
+      ${pillars?`<div class="card"><h3>內容支柱</h3><ul class="lst">${pillars}</ul></div>`:''}
+      ${(fn.public||fn.private||fn.product)?`<div class="card"><h3>變現漏斗</h3><ul class="lst">
+        <li><b>①公開流量</b> — ${esc(fn.public)}</li><li><b>②私域關係</b> — ${esc(fn.private)}</li><li><b>③產品變現</b> — ${esc(fn.product)}</li></ul></div>`:''}
+
+      <div class="card">
+        <h3>鉤子信心度(隨你的貼文分析升降)</h3>
+        ${hookRows?`<table><tr><th>鉤子</th><th>信心度</th><th>驗證</th></tr>${hookRows}</table>`:'<div class="empty">還沒有鉤子數據。去分析幾篇貼文吧。</div>'}
+      </div>
+
+      <div class="card">
+        <h3>你的語言習慣</h3>
+        ${ln.length?`<ul class="lst">${ln.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<div class="empty">分析你自己的貼文後,這裡會記錄你的用字風格。</div>'}
+      </div>
+
+      <div class="card">
+        <h3>已驗證模式(你專屬)</h3>
+        ${vp.length?`<ul class="lst">${vp.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<div class="empty">分析爆文後,可移植的有效手法會累積在這。</div>'}
+      </div>
+
+      <div class="card">
+        <h3>客群觀察</h3>
+        ${au.length?`<ul class="lst">${au.map(x=>`<li>${esc(x)}</li>`).join('')}</ul>`:'<div class="empty">尚未累積客群觀察。</div>'}
+      </div>
+
+      <div class="card">
+        <h3>基準線與進度</h3>
+        <div class="ip-meta">
+          <b>平均瀏覽基準:</b>${bl.avg_views!=null?esc(bl.avg_views):'尚未建立'}<br>
+          <b>累積分析案例:</b>${caseCount} 篇
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>版本歷史</h3>
+        <div class="hist">${hist.map(h=>`<div class="row"><span class="v">v${esc(h.version)}</span><span class="c">${esc(h.date)} · ${esc(h.change)}</span></div>`).join('')}</div>
+      </div>
+
+      <a class="cta" href="onboarding.html">用進化後的模型生成新題材 →</a>
+      <a class="cta ghost" href="analyze.html?tab=own">再分析一篇貼文 →</a>
+    `;
+    document.getElementById('content').style.display='block';
+  }
+</script>
+</body>
+</html>

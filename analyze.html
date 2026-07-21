@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>貼文分析 — IP Studio</title>
+<style>
+  :root{--bg:#f5efe3;--card:#fffdf8;--card2:#efe7d5;--ink:#2f2a20;--ink-soft:#8b8069;--line:#e6dcc6;
+    --accent:#bd982f;--accent-soft:rgba(189,152,47,.15);--gold:#bd982f;--green:#4b9e6f;--red:#cf5b4e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px}
+  .credits-pill{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px}
+  .tabs{display:flex;gap:8px;margin-bottom:18px}
+  .tab{flex:1;text-align:center;padding:11px;border:1px solid var(--line);border-radius:12px;cursor:pointer;font-weight:700;font-size:14.5px;color:var(--ink-soft);background:var(--card)}
+  .tab.active{border-color:var(--accent);color:var(--ink);background:var(--card2)}
+  h1{font-size:20px;margin-bottom:4px}
+  .sub{color:var(--ink-soft);font-size:13.5px;line-height:1.7;margin-bottom:18px}
+
+  .drop{border:2px dashed var(--line);border-radius:16px;padding:30px 18px;text-align:center;cursor:pointer;background:var(--card)}
+  .drop:hover{border-color:var(--accent)}
+  .drop .ic{font-size:34px}
+  .drop .t{margin-top:8px;font-weight:700}
+  .drop .h{color:var(--ink-soft);font-size:12.5px;margin-top:4px}
+  #preview{max-width:100%;border-radius:12px;margin-top:14px;display:none}
+  input[type=file]{display:none}
+
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:disabled{opacity:.5;cursor:wait}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .cost-note{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:8px}
+
+  .step{display:none}.step.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  .card h3{font-size:14px;color:var(--ink-soft);letter-spacing:1px;margin-bottom:12px}
+  .nums{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .numf label{display:block;font-size:12.5px;color:var(--ink-soft);margin-bottom:4px}
+  .numf input{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:10px;color:var(--ink);padding:9px 11px;font-size:15px}
+  .numf input:focus{outline:none;border-color:var(--accent)}
+  .posttext{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px;font-size:13.5px;line-height:1.7;color:var(--ink-soft);white-space:pre-wrap;max-height:150px;overflow:auto}
+  ul.att{list-style:none;font-size:14px;line-height:1.9}
+  ul.att li:before{content:"→ ";color:var(--accent)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .chip{font-size:12px;background:var(--card2);color:var(--ink-soft);padding:3px 9px;border-radius:999px}
+  .warn{background:rgba(245,196,81,.12);color:var(--gold);border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.6;margin-top:10px}
+
+  .evo{background:linear-gradient(135deg,rgba(189,152,47,.18),rgba(75,158,111,.12));border:1px solid var(--accent);border-radius:16px;padding:22px;text-align:center}
+  .evo .big{font-size:30px;font-weight:900;color:var(--accent)}
+  .evo .lst{text-align:left;margin-top:14px;font-size:14px;line-height:1.9}
+  .evo .lst .k{color:var(--green);font-weight:700}
+
+  .loading{text-align:center;padding:34px 0;color:var(--ink-soft)}
+  .spin{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:99;max-width:86vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <div class="topbar" style="justify-content:flex-end">
+    <div class="credits-pill">⚡ <span class="credits-num">0</span> 點</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab" id="tab-own" onclick="switchTab('own')">📈 分析我的貼文</div>
+    <div class="tab" id="tab-other" onclick="switchTab('other')">🔍 分析別人的爆文</div>
+  </div>
+
+  <!-- Step 上傳 -->
+  <div id="step-upload" class="step active">
+    <h1 id="up-title">分析我的貼文</h1>
+    <p class="sub" id="up-sub"></p>
+    <label class="drop" for="file">
+      <div class="ic">📷</div>
+      <div class="t">點這裡上傳截圖</div>
+      <div class="h">Threads 貼文截圖(含瀏覽/讚/留言最好)</div>
+      <img id="preview">
+    </label>
+    <input type="file" id="file" accept="image/*" onchange="onFile(event)">
+    <button id="btn-analyze" class="btn btn-primary" onclick="analyze()" disabled>開始分析</button>
+    <div class="cost-note">將消耗 1 點</div>
+  </div>
+
+  <!-- Step 確認抽取數據 -->
+  <div id="step-confirm" class="step">
+    <h1>確認截圖數據</h1>
+    <p class="sub">AI 讀出的數字可能有誤,請核對或修正後再送出。確認後才會更新你的模型。</p>
+    <div class="card">
+      <h3>貼文內容</h3>
+      <div class="posttext" id="c-posttext"></div>
+    </div>
+    <div class="card">
+      <h3>成效數據(可修正)</h3>
+      <div class="nums">
+        <div class="numf"><label>瀏覽</label><input id="c-views" type="number" min="0"></div>
+        <div class="numf"><label>讚</label><input id="c-likes" type="number" min="0"></div>
+        <div class="numf"><label>留言</label><input id="c-comments" type="number" min="0"></div>
+        <div class="numf"><label>分享/轉發</label><input id="c-shares" type="number" min="0"></div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>流量歸因</h3>
+      <ul class="att" id="c-attribution"></ul>
+      <div class="chips" id="c-hooks"></div>
+      <div id="c-audience" style="color:var(--ink-soft);font-size:13.5px;margin-top:10px;line-height:1.7"></div>
+    </div>
+    <div class="warn" id="c-patch-preview"></div>
+    <button id="btn-confirm" class="btn btn-primary" onclick="confirmAnalysis()">確認,更新我的模型</button>
+    <button class="btn btn-ghost" onclick="goStep('step-upload')">取消</button>
+  </div>
+
+  <!-- Step 進化結果 -->
+  <div id="step-done" class="step">
+    <div class="evo">
+      <div>你的模型已進化到</div>
+      <div class="big" id="d-version">v1.1</div>
+      <div class="lst" id="d-changes"></div>
+    </div>
+    <button class="btn btn-primary" onclick="location.href='model.html'">查看我的模型</button>
+    <button class="btn btn-ghost" onclick="resetToUpload()">再分析一篇</button>
+  </div>
+
+  <!-- loading -->
+  <div id="step-loading" class="step">
+    <div class="loading"><div class="spin"></div><div id="loading-msg">AI 讀取截圖中…</div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/api.js"></script>
+<script src="js/image.js"></script>
+<script>
+  let kind = 'own', imgB64 = null, phase1 = null;
+
+  function showLogin(){ location.href='index.html'; }
+  function onLoggedIn(){ document.querySelectorAll('.credits-num').forEach(el=>el.textContent=currentUser.credits); }
+
+  // 依 ?tab= 初始
+  (function(){ const t=new URLSearchParams(location.search).get('tab'); if(t==='other') kind='other'; })();
+  function applyTabUI(){
+    document.getElementById('tab-own').classList.toggle('active', kind==='own');
+    document.getElementById('tab-other').classList.toggle('active', kind==='other');
+    document.getElementById('up-title').textContent = kind==='own'?'分析我的貼文':'分析別人的爆文';
+    document.getElementById('up-sub').textContent = kind==='own'
+      ? '上傳你發文後的截圖。AI 會歸因你的流量表現,並把你的語言習慣與有效鉤子寫進你的模型。'
+      : '上傳別人貼文的截圖。AI 會拆解他為什麼流量好,把可移植的手法進化進你自己的模型(不會學他的語氣)。';
+  }
+  function switchTab(k){ kind=k; applyTabUI(); resetToUpload(); }
+
+  function goStep(id){ document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
+  function resetToUpload(){ imgB64=null; phase1=null; document.getElementById('file').value=''; document.getElementById('preview').style.display='none'; document.getElementById('btn-analyze').disabled=true; goStep('step-upload'); }
+
+  async function onFile(e){
+    const f = e.target.files[0]; if(!f) return;
+    try{
+      imgB64 = await fileToBase64(f, 1000, 0.75);
+      const img = document.getElementById('preview');
+      img.src = 'data:image/jpeg;base64,'+imgB64; img.style.display='block';
+      document.getElementById('btn-analyze').disabled=false;
+    }catch(err){ showToast('圖片讀取失敗'); }
+  }
+
+  async function analyze(){
+    if(!imgB64){ showToast('請先上傳截圖'); return; }
+    document.getElementById('loading-msg').textContent='AI 讀取截圖並分析中…';
+    goStep('step-loading');
+    try{
+      const d = await callFn('ipapp-analyze', { kind, image: imgB64 });
+      phase1 = d;
+      if(typeof d.credits==='number') setCredits(d.credits);
+      renderConfirm(d);
+      goStep('step-confirm');
+    }catch(e){ goStep('step-upload'); showToast(e.message); }
+  }
+
+  function renderConfirm(d){
+    const ex=d.extracted||{}, an=d.analysis||{}, pa=d.patch||{};
+    document.getElementById('c-posttext').textContent = ex.post_text || '(未讀到內文)';
+    document.getElementById('c-views').value = ex.views||0;
+    document.getElementById('c-likes').value = ex.likes||0;
+    document.getElementById('c-comments').value = ex.comments||0;
+    document.getElementById('c-shares').value = ex.shares||0;
+    document.getElementById('c-attribution').innerHTML = (an.attribution||[]).map(a=>`<li>${esc(a)}</li>`).join('');
+    document.getElementById('c-hooks').innerHTML = (an.hooks_used||[]).map(h=>`<span class="chip">鉤子 ${esc(h)}</span>`).join('');
+    document.getElementById('c-audience').textContent = an.audience_insight ? '客群洞察:'+an.audience_insight : '';
+    // patch 預覽
+    const bits=[];
+    if((pa.hooks_up||[]).length) bits.push('升信心度:'+pa.hooks_up.join('、'));
+    if((pa.hooks_down||[]).length) bits.push('降信心度:'+pa.hooks_down.join('、'));
+    if(pa.new_verified_pattern) bits.push('新增已驗證模式');
+    if(pa.audience_note) bits.push('累積客群觀察');
+    if(kind==='own' && pa.language_habit) bits.push('記錄你的語言習慣');
+    document.getElementById('c-patch-preview').textContent = '確認後將更新模型:'+(bits.join('｜')||'(此篇無實質可學,將只記錄案例)');
+  }
+
+  async function confirmAnalysis(){
+    const btn=document.getElementById('btn-confirm'); btn.disabled=true; btn.textContent='更新中…';
+    // 用修正後的數字覆蓋
+    const confirm = {
+      extracted: { ...phase1.extracted,
+        views:+document.getElementById('c-views').value||0,
+        likes:+document.getElementById('c-likes').value||0,
+        comments:+document.getElementById('c-comments').value||0,
+        shares:+document.getElementById('c-shares').value||0 },
+      analysis: phase1.analysis, patch: phase1.patch,
+    };
+    try{
+      const d = await callFn('ipapp-analyze', { kind, confirm });
+      renderDone(d);
+      goStep('step-done');
+    }catch(e){ showToast(e.message); btn.disabled=false; btn.textContent='確認,更新我的模型'; }
+  }
+
+  function renderDone(d){
+    document.getElementById('d-version').textContent='v'+(d.version||'?');
+    const ap=d.applied||{}; const rows=[];
+    if((ap.hooks_up||[]).length) rows.push(`<div><span class="k">鉤子升級</span>:${esc(ap.hooks_up.join('、'))}</div>`);
+    if((ap.hooks_down||[]).length) rows.push(`<div><span class="k">鉤子降級</span>:${esc(ap.hooks_down.join('、'))}</div>`);
+    if(ap.new_verified_pattern) rows.push(`<div><span class="k">新已驗證模式</span>:${esc(ap.new_verified_pattern)}</div>`);
+    if(ap.audience_note) rows.push(`<div><span class="k">客群觀察</span>:${esc(ap.audience_note)}</div>`);
+    if(ap.language_habit) rows.push(`<div><span class="k">你的語言習慣</span>:${esc(ap.language_habit)}</div>`);
+    document.getElementById('d-changes').innerHTML = rows.join('') || '<div>已記錄此案例。</div>';
+  }
+
+  function esc(s){ return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function setCredits(n){ if(currentUser) currentUser.credits=n; document.querySelectorAll('.credits-num').forEach(el=>el.textContent=n); }
+  let _tt; function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3400); }
+
+  applyTabUI();
+</script>
+</body>
+</html>

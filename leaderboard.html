@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>流量排行榜 — IP Studio</title>
+<style>
+  :root{--bg:#f5efe3;--card:#fffdf8;--card2:#efe7d5;--ink:#2f2a20;--ink-soft:#8b8069;--line:#e6dcc6;
+    --accent:#bd982f;--accent-soft:rgba(189,152,47,.15);--gold:#bd982f;--green:#4b9e6f;--red:#cf5b4e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:16px;line-height:1.6}
+
+  .sorts{display:flex;gap:8px;margin-bottom:16px}
+  .sortbtn{flex:1;text-align:center;padding:9px 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
+    font-size:13px;font-weight:700;color:var(--ink-soft);background:var(--card)}
+  .sortbtn.active{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+
+  .row{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;
+    display:flex;align-items:center;gap:14px;box-shadow:0 1px 8px rgba(120,100,40,.05)}
+  .rank{font-size:20px;font-weight:900;color:var(--ink-soft);width:34px;text-align:center;flex-shrink:0}
+  .row.top1 .rank{color:#c9a227}.row.top2 .rank{color:#a9a29a}.row.top3 .rank{color:#c08a4a}
+  .row.me{border-color:var(--accent);background:var(--accent-soft)}
+  .who{flex:1;min-width:0}
+  .name{font-weight:800;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .name .metag{font-size:11px;background:var(--accent);color:#fff;padding:1px 7px;border-radius:999px;margin-left:6px;vertical-align:middle}
+  .ver{color:var(--ink-soft);font-size:12px;margin-top:2px}
+  .metric{text-align:right;flex-shrink:0}
+  .metric .big{font-size:20px;font-weight:900;color:var(--accent)}
+  .metric .lab{font-size:11px;color:var(--ink-soft)}
+  .sub2{display:flex;gap:14px;margin-top:4px;font-size:11.5px;color:var(--ink-soft)}
+  .sub2 b{color:var(--ink)}
+
+  .loading{text-align:center;padding:44px 0;color:var(--ink-soft)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{color:var(--ink-soft);font-size:14px;text-align:center;padding:30px 0}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <h1>🏆 流量排行榜</h1>
+  <p class="sub">看看大家用自己的 IP 模型跑出什麼成績。點下方切換排序。</p>
+
+  <div class="sorts">
+    <div class="sortbtn active" data-k="max_views" onclick="setSort('max_views')">個人最高流量</div>
+    <div class="sortbtn" data-k="posts" onclick="setSort('posts')">發文次數</div>
+    <div class="sortbtn" data-k="updates" onclick="setSort('updates')">模型更新次數</div>
+  </div>
+
+  <div id="loading" class="loading"><div class="spin"></div>載入中…</div>
+  <div id="list"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  let rows = [], sortKey = 'max_views';
+  const LABELS = { max_views:'最高流量', posts:'發文次數', updates:'更新次數' };
+
+  function showLogin(){ location.href='index.html'; }
+  async function onLoggedIn(){ await load(); }
+
+  async function load(){
+    const { data, error } = await supabase.rpc('ipapp_leaderboard');
+    document.getElementById('loading').style.display='none';
+    if(error){ document.getElementById('list').innerHTML='<div class="empty">載入失敗:'+esc(error.message)+'</div>'; return; }
+    rows = data || [];
+    render();
+  }
+
+  function setSort(k){ sortKey=k; document.querySelectorAll('.sortbtn').forEach(b=>b.classList.toggle('active',b.dataset.k===k)); render(); }
+
+  function render(){
+    if(!rows.length){ document.getElementById('list').innerHTML='<div class="empty">還沒有人上榜,快去分析第一篇貼文!</div>'; return; }
+    const sorted = rows.slice().sort((a,b)=>(b[sortKey]||0)-(a[sortKey]||0));
+    const myName = currentUser?.display_name;
+    document.getElementById('list').innerHTML = sorted.map((r,i)=>{
+      const rank=i+1;
+      const isMe = myName && r.display_name===myName;
+      const cls = ['row', rank<=3?('top'+rank):'', isMe?'me':''].filter(Boolean).join(' ');
+      const medal = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':('#'+rank);
+      const main = fmt(r[sortKey]);
+      return `<div class="${cls}">
+        <div class="rank">${medal}</div>
+        <div class="who">
+          <div class="name">${esc(r.display_name||'(未命名)')}${isMe?'<span class="metag">我</span>':''}</div>
+          <div class="ver">模型 ${r.model_version?('v'+esc(r.model_version)):'尚未建立'}</div>
+          <div class="sub2">
+            <span>發文 <b>${r.posts||0}</b></span>
+            <span>更新 <b>${r.updates||0}</b></span>
+            <span>最高流量 <b>${fmt(r.max_views||0)}</b></span>
+          </div>
+        </div>
+        <div class="metric"><div class="big">${main}</div><div class="lab">${LABELS[sortKey]}</div></div>
+      </div>`;
+    }).join('');
+  }
+
+  function fmt(n){ n=+n||0; return n>=10000?(n/10000).toFixed(1).replace(/\.0$/,'')+'萬':n.toLocaleString(); }
+  function esc(s){ return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+</script>
+</body>
+</html>

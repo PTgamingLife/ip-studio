@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>後台 — IP Studio</title>
+<style>
+  :root{--bg:#f5efe3;--card:#fffdf8;--card2:#efe7d5;--ink:#2f2a20;--ink-soft:#8b8069;--line:#e6dcc6;
+    --accent:#bd982f;--accent-soft:rgba(189,152,47,.15);--green:#4b9e6f}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:760px;margin:0 auto;padding:20px 16px 80px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px}
+  h1{font-size:22px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+  .u-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .u-name{font-weight:700}
+  .u-mail{color:var(--ink-soft);font-size:12.5px}
+  .u-meta{color:var(--ink-soft);font-size:12.5px;margin-top:4px}
+  .credits{color:var(--accent);font-weight:800}
+  .addrow{display:flex;gap:8px;margin-top:10px}
+  .addrow input{width:90px;background:var(--card2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:7px 9px;font-size:14px}
+  .addrow button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:13.5px;font-weight:700;cursor:pointer}
+  .addrow button:disabled{opacity:.5}
+  .badge{font-size:11px;background:var(--accent-soft);color:var(--accent);padding:2px 8px;border-radius:999px}
+  .loading{text-align:center;padding:40px 0;color:var(--ink-soft)}
+  #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:99}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <h1>🛠️ 後台 · 使用者管理</h1>
+  <div id="loading" class="loading">載入中…</div>
+  <div id="list"></div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/api.js"></script>
+<script>
+  function showLogin(){ location.href='index.html'; }
+  async function onLoggedIn(){
+    if(!currentUser.is_admin){ document.getElementById('loading').textContent='你沒有後台權限。'; return; }
+    await loadUsers();
+  }
+
+  async function loadUsers(){
+    try{
+      const d = await callFn('ipapp-admin', { action:'list' });
+      render(d.users||[]);
+    }catch(e){ document.getElementById('loading').textContent = '載入失敗:'+e.message; }
+  }
+
+  function render(users){
+    document.getElementById('loading').style.display='none';
+    document.getElementById('list').innerHTML = users.map(u=>`
+      <div class="card" data-uid="${esc(u.user_id)}">
+        <div class="u-head">
+          <div>
+            <span class="u-name">${esc(u.display_name||'(未命名)')}</span>
+            ${u.is_admin?'<span class="badge">管理員</span>':''}
+            <div class="u-mail">${esc(u.email||'')}</div>
+          </div>
+          <div class="credits"><span class="c-num">${u.credits}</span> 點</div>
+        </div>
+        <div class="u-meta">模型 ${u.model_version?('v'+esc(u.model_version)):'尚未建立'} ｜ 加入 ${esc((u.created_at||'').slice(0,10))}</div>
+        <div class="addrow">
+          <input type="number" placeholder="點數" value="10">
+          <button onclick="addCredits(this)">加值</button>
+          <button onclick="addCreditsNeg(this)" style="background:transparent;border:1px solid var(--line);color:var(--ink-soft)">扣除</button>
+        </div>
+      </div>`).join('');
+  }
+
+  async function addCredits(btn, sign=1){
+    const card = btn.closest('.card');
+    const uid = card.dataset.uid;
+    const amt = Math.abs(parseInt(card.querySelector('input').value)||0) * sign;
+    if(!amt){ showToast('請輸入點數'); return; }
+    btn.disabled=true;
+    try{
+      const d = await callFn('ipapp-admin', { action:'add_credits', target_user_id: uid, amount: amt });
+      card.querySelector('.c-num').textContent = d.credits;
+      showToast('✅ 已更新為 '+d.credits+' 點');
+    }catch(e){ showToast(e.message); }
+    finally{ btn.disabled=false; }
+  }
+  function addCreditsNeg(btn){ return addCredits(btn, -1); }
+
+  function esc(s){ return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  let _tt; function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3000); }
+</script>
+</body>
+</html>

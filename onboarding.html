@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>設定我的 IP — IP Studio</title>
+<style>
+  :root {
+    --bg:#f5efe3; --card:#fffdf8; --card2:#efe7d5; --ink:#2f2a20; --ink-soft:#8b8069;
+    --line:#e6dcc6; --accent:#bd982f; --accent-soft:rgba(189,152,47,.15);
+    --gold:#bd982f; --green:#4b9e6f; --amber:#d99a3a; --red:#cf5b4e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:640px;margin:0 auto;padding:20px 16px 80px}
+  a.back{color:var(--ink-soft);text-decoration:none;font-size:14px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+  .credits-pill{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:6px 14px;font-weight:800;font-size:14px}
+  h1{font-size:22px;margin:6px 0 4px}
+  .sub{color:var(--ink-soft);font-size:14px;line-height:1.7;margin-bottom:20px}
+  .step{display:none}
+  .step.active{display:block}
+
+  label.field{display:block;margin-bottom:16px}
+  label.field .lab{font-weight:700;font-size:15px;margin-bottom:2px;display:block}
+  label.field .hint{color:var(--ink-soft);font-size:12.5px;margin-bottom:8px;display:block;line-height:1.6}
+  textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;color:var(--ink);
+    padding:12px 14px;font-size:15px;font-family:inherit;resize:vertical;min-height:70px;line-height:1.6}
+  textarea:focus{outline:none;border-color:var(--accent)}
+
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:disabled{opacity:.5;cursor:wait}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn-row{display:flex;gap:10px;margin-top:8px}
+  .btn-row .btn{margin-top:0}
+
+  .cost-note{text-align:center;color:var(--ink-soft);font-size:12.5px;margin-top:10px}
+
+  /* 提案卡 */
+  .prop{background:var(--card);border:2px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;cursor:pointer;transition:border-color .15s}
+  .prop:hover{border-color:var(--accent)}
+  .prop.sel{border-color:var(--accent);background:var(--card2)}
+  .prop .ph{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .prop .pname{font-size:17px;font-weight:800}
+  .prop .oneliner{color:var(--ink);font-size:14px;margin:6px 0;line-height:1.6}
+  .mvs{white-space:nowrap;font-weight:800;font-size:13px;padding:4px 10px;border-radius:999px;background:var(--card2)}
+  .prop .meta{color:var(--ink-soft);font-size:12.5px;line-height:1.7;margin-top:6px}
+  .prop .meta b{color:var(--ink)}
+  .prop details{margin-top:8px}
+  .prop summary{color:var(--accent);font-size:13px;cursor:pointer}
+  .prop .detail{font-size:13px;color:var(--ink-soft);line-height:1.8;margin-top:8px}
+  .prop .detail .k{color:var(--ink);font-weight:700}
+  .reco{background:var(--accent-soft);border-radius:12px;padding:12px 14px;font-size:13.5px;line-height:1.7;margin-bottom:16px}
+
+  /* 主題卡 */
+  .topic{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+  .topic .tt{font-size:17px;font-weight:800;margin-bottom:4px}
+  .topic .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .topic .tag{font-size:12px;background:var(--card2);color:var(--ink-soft);padding:3px 9px;border-radius:999px}
+  .topic .blk{margin-top:8px;font-size:14px;line-height:1.75}
+  .topic .blk .k{color:var(--accent);font-weight:700;font-size:12.5px;display:block;margin-bottom:2px}
+  .topic .hookgrid{background:var(--card2);border-radius:10px;padding:10px 12px;margin-top:6px;font-size:13.5px;line-height:1.7}
+
+  .loading{text-align:center;padding:36px 0;color:var(--ink-soft)}
+  .spin{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 14px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:99;max-width:86vw;text-align:center}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <div class="topbar" style="justify-content:flex-end">
+    <div class="credits-pill">⚡ <span class="credits-num">0</span> 點</div>
+  </div>
+
+  <!-- Step 1:四角料表單 -->
+  <div id="step-form" class="step active">
+    <h1>🧭 設定我的 IP</h1>
+    <p class="sub">回答下面 5 題(越具體越好)。AI 會依基礎模型幫你設計 3 個最有流量潛力的 IP 定位,並附商業評分。</p>
+
+    <label class="field">
+      <span class="lab">1. 經歷 / 專業</span>
+      <span class="hint">做過什麼、最擅長什麼、有什麼別人沒有的資歷或數字。這決定你的可信度。</span>
+      <textarea id="f-experience" placeholder="例:12 年金融業主管，帶過 30 人團隊，熟悉退休金配置…"></textarea>
+    </label>
+    <label class="field">
+      <span class="lab">2. 性格 / 表達</span>
+      <span class="hint">講話風格、外向內向、能不能露臉、幽默還是嚴肅。這決定你的內容形式。</span>
+      <textarea id="f-personality" placeholder="例:講話直白、愛用故事比喻、能露臉、偏嚴肅但有溫度…"></textarea>
+    </label>
+    <label class="field">
+      <span class="lab">3. 資源 / 不公平優勢</span>
+      <span class="hint">人脈、身分、設備、圈子、獨家管道。這是別人抄不走的護城河。</span>
+      <textarea id="f-resources" placeholder="例:有一群高資產客戶人脈、證照齊全、認識很多同業…"></textarea>
+    </label>
+    <label class="field">
+      <span class="lab">4. 目標 / 意圖</span>
+      <span class="hint">想變現？接案？做品牌？這決定你的變現路徑。</span>
+      <textarea id="f-goal" placeholder="例:想做個人品牌接理財諮詢與線上課程，離開受雇身分…"></textarea>
+    </label>
+    <label class="field">
+      <span class="lab">5. 起源故事(從哪裡 → 變成什麼)</span>
+      <span class="hint">一個轉折點。讀者需要一個代入的入口。</span>
+      <textarea id="f-origin" placeholder="例:從每天被業績追著跑的分行經理，變成幫人規劃退休的自由工作者…"></textarea>
+    </label>
+
+    <button id="btn-generate" class="btn btn-primary" onclick="genProposals()">生成 3 個 IP 提案</button>
+    <div class="cost-note">將消耗 1 點</div>
+  </div>
+
+  <!-- Step 2:提案卡 -->
+  <div id="step-props" class="step">
+    <h1>你的 3 個 IP 提案</h1>
+    <p class="sub">點卡片選一個當你的主 IP。之後可用它生成短影音題材,並隨你的貼文分析持續進化。</p>
+    <div id="reco" class="reco" style="display:none"></div>
+    <div id="props"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="goStep('step-form')">重新填寫</button>
+      <button id="btn-confirm" class="btn btn-primary" onclick="confirmIp()" disabled>選這個 IP</button>
+    </div>
+  </div>
+
+  <!-- Step 3:生成主題 -->
+  <div id="step-topics" class="step">
+    <h1>🎬 你的短影音題材</h1>
+    <p class="sub" id="topics-sub">IP 已設定完成。以下是依你的定位生成的 3 個短影音主題與腳本。</p>
+    <div id="topics"></div>
+    <div class="btn-row">
+      <button class="btn btn-ghost" onclick="location.href='index.html'">回主控台</button>
+      <button id="btn-more-topics" class="btn btn-primary" onclick="genTopics()">再生成 3 個(1 點)</button>
+    </div>
+  </div>
+
+  <!-- loading -->
+  <div id="step-loading" class="step">
+    <div class="loading"><div class="spin"></div><div id="loading-msg">AI 設計中,約需 20–40 秒…</div></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script src="js/api.js"></script>
+<script>
+  let proposals = [], selectedIdx = -1;
+
+  /* auth.js 會呼叫這兩個 */
+  function showLogin(){ location.href = 'index.html'; }       // 未登入 → 回首頁登入
+  function onLoggedIn(){
+    document.querySelectorAll('.credits-num').forEach(el=>el.textContent = currentUser.credits);
+  }
+
+  function goStep(id){
+    document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+
+  /* Step1 → 生成提案 */
+  async function genProposals(){
+    const form = {
+      experience: v('f-experience'), personality: v('f-personality'),
+      resources: v('f-resources'), goal: v('f-goal'), origin_story: v('f-origin'),
+    };
+    if(!form.experience && !form.goal){ showToast('至少填「經歷/專業」與「目標」'); return; }
+    document.getElementById('loading-msg').textContent = 'AI 正在依基礎模型設計 IP,約需 20–40 秒…';
+    goStep('step-loading');
+    try{
+      const data = await callFn('ipapp-generate', { action:'ip_setup', form },
+        { onRetry:(a,n,s)=>document.getElementById('loading-msg').textContent=`系統忙碌,重試中(${a}/${n})…` });
+      proposals = data.proposals || [];
+      if(typeof data.credits==='number') setCredits(data.credits);
+      renderProposals(data.recommendation);
+      goStep('step-props');
+    }catch(e){ goStep('step-form'); showToast(e.message); }
+  }
+
+  function renderProposals(reco){
+    selectedIdx = -1;
+    document.getElementById('btn-confirm').disabled = true;
+    const rc = document.getElementById('reco');
+    if(reco){ rc.style.display='block'; rc.innerHTML = '💡 <b>推薦:</b>' + esc(reco); } else rc.style.display='none';
+    const wrap = document.getElementById('props');
+    wrap.innerHTML = proposals.map((p,i)=>{
+      const m = p.mvs||{};
+      const color = String(m.verdict||'').includes('🟢')?'var(--green)':String(m.verdict||'').includes('🔴')?'var(--red)':String(m.verdict||'').includes('🟠')?'var(--amber)':'var(--gold)';
+      const pct = r => r==null?'':(r>1?Math.round(r):Math.round(r*100))+'%';
+      const pillars = (p.pillars||[]).map(c=>`<div><span class="k">${esc(c.name)} ${pct(c.ratio)}</span>:${esc((c.examples||[]).join('、'))}</div>`).join('');
+      const fn = p.funnel||{};
+      return `<div class="prop" data-i="${i}" onclick="selProp(${i})">
+        <div class="ph">
+          <div><div class="pname">${esc(p.name||('提案'+(i+1)))}</div></div>
+          <div class="mvs" style="color:${color}">MVS ${m.score??'–'}<br><span style="font-size:11px">${esc(m.verdict||'')}</span></div>
+        </div>
+        <div class="oneliner">${esc(p.one_liner||'')}</div>
+        <div class="meta"><b>Bio:</b>${esc(p.bio_first_line||'')}<br>
+          <b>原型:</b>${esc(p.archetype||'')} ${esc(p.archetype_name||'')} ｜ <b>記憶點:</b>${esc((p.memory_hooks||[]).join(' '))}<br>
+          <b>方法論:</b>${esc(p.method_name||'')}</div>
+        <details onclick="event.stopPropagation()"><summary>展開細節(起源故事 / 支柱 / 漏斗 / 評分)</summary>
+          <div class="detail">
+            <div><span class="k">起源故事</span>:${esc(p.origin_story||'')}</div>
+            <div><span class="k">置頂三格</span>:${esc((p.pinned_three||[]).join(' ／ '))}</div>
+            <div><span class="k">內容支柱</span>${pillars}</div>
+            <div><span class="k">變現漏斗</span>:①${esc(fn.public||'')} ②${esc(fn.private||'')} ③${esc(fn.product||'')}</div>
+            <div><span class="k">MVS 計算</span>:${esc(m.calc||'')}｜${esc(m.note||'')}</div>
+            <div><span class="k">護城河</span>:${esc(p.moat||'')}</div>
+          </div>
+        </details>
+      </div>`;
+    }).join('');
+  }
+
+  function selProp(i){
+    selectedIdx = i;
+    document.querySelectorAll('.prop').forEach(el=>el.classList.toggle('sel', +el.dataset.i===i));
+    document.getElementById('btn-confirm').disabled = false;
+  }
+
+  async function confirmIp(){
+    if(selectedIdx<0){ showToast('請先選一個提案'); return; }
+    const btn = document.getElementById('btn-confirm'); btn.disabled=true; btn.textContent='儲存中…';
+    try{
+      await callFn('ipapp-generate', { action:'confirm_ip', proposal: proposals[selectedIdx] });
+      showToast('✅ IP 已設定');
+      document.getElementById('topics-sub').textContent='IP 已設定完成,正在生成第一批短影音題材…';
+      goStep('step-loading');
+      document.getElementById('loading-msg').textContent='AI 正在生成短影音題材,約需 20–40 秒…';
+      await genTopics(true);
+    }catch(e){ showToast(e.message); btn.disabled=false; btn.textContent='選這個 IP'; }
+  }
+
+  async function genTopics(fromConfirm){
+    if(!fromConfirm){ goStep('step-loading'); document.getElementById('loading-msg').textContent='AI 正在生成短影音題材,約需 20–40 秒…'; }
+    try{
+      const data = await callFn('ipapp-generate', { action:'topics' },
+        { onRetry:(a,n,s)=>document.getElementById('loading-msg').textContent=`系統忙碌,重試中(${a}/${n})…` });
+      if(typeof data.credits==='number') setCredits(data.credits);
+      renderTopics(data.topics||[]);
+      goStep('step-topics');
+    }catch(e){
+      // 若在 confirm 後失敗,退回提案頁;否則留在主題頁
+      showToast(e.message);
+      goStep(document.getElementById('topics').children.length ? 'step-topics' : 'step-props');
+    }
+  }
+
+  function renderTopics(topics){
+    document.getElementById('topics').innerHTML = topics.map(t=>{
+      return `<div class="topic">
+        <div class="tt">${esc(t.title||'')}</div>
+        <div class="tags">
+          <span class="tag">鉤子 ${esc(t.hook_formula||'')}</span>
+          <span class="tag">賭 ${esc(t.bet_mechanism||'')}</span>
+          <span class="tag">${esc(t.length||'')}</span>
+        </div>
+        <div class="blk"><span class="k">Hook(0–3 秒)</span>
+          <div class="hookgrid">🎙️ 口白:${esc(t.hook_voice||'')}<br>🎬 畫面:${esc(t.hook_visual||'')}<br>🔤 字卡:${esc(t.hook_caption||'')}</div>
+        </div>
+        <div class="blk"><span class="k">主體</span>${esc(t.body||'')}</div>
+        <div class="blk"><span class="k">收尾 + CTA</span>${esc(t.ending||'')}</div>
+        <div class="blk"><span class="k">發文文案</span>${esc(t.caption||'')}</div>
+        <div class="blk" style="color:var(--ink-soft);font-size:13px"><span class="k">設計理由</span>${esc(t.why||'')}</div>
+      </div>`;
+    }).join('');
+  }
+
+  /* helpers */
+  function v(id){ return document.getElementById(id).value.trim(); }
+  function esc(s){ return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function setCredits(n){ if(currentUser) currentUser.credits=n; document.querySelectorAll('.credits-num').forEach(el=>el.textContent=n); }
+  let _tt; function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),3400); }
+</script>
+</body>
+</html>
