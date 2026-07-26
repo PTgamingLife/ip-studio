@@ -78,6 +78,8 @@
 
   <!-- Step 1:四角料表單 -->
   <div id="step-form" class="step active">
+    <div id="already-set" style="display:none"></div>
+    <div id="form-body">
     <h1>🧭 設定我的 IP</h1>
     <p class="sub">回答下面 5 題(越具體越好)。AI 會依基礎模型幫你設計 3 個最有流量潛力的 IP 定位,並附商業評分。</p>
 
@@ -109,6 +111,7 @@
 
     <button id="btn-generate" class="btn btn-primary" onclick="genProposals()">生成 3 個 IP 提案</button>
     <div class="cost-note">將消耗 1 點</div>
+    </div><!-- /form-body -->
   </div>
 
   <!-- Step 2:提案卡 -->
@@ -152,8 +155,46 @@
 
   /* auth.js 會呼叫這兩個 */
   function showLogin(){ location.href = 'index.html'; }       // 未登入 → 回首頁登入
-  function onLoggedIn(){
+  async function onLoggedIn(){
     document.querySelectorAll('.credits-num').forEach(el=>el.textContent = currentUser.credits);
+    // 已設定過 IP → 顯示提示卡,不逼使用者重填
+    try{
+      const { data:m } = await supabase.from('ipapp_models')
+        .select('personal,version').eq('user_id', currentUser.user_id).maybeSingle();
+      const ip = m?.personal?.ip;
+      if(ip && ip.one_liner){
+        const el = document.getElementById('already-set');
+        el.innerHTML = `
+          <div style="background:var(--card);border:1px solid var(--accent);border-radius:16px;padding:20px;margin-bottom:8px">
+            <div style="font-size:13px;color:var(--accent);font-weight:800">✅ 你已經設定過 IP(v${esc(m.version||'1.0')})</div>
+            <div style="font-size:16.5px;font-weight:700;margin:8px 0 14px;line-height:1.55">${esc(ip.one_liner)}</div>
+            <div style="color:var(--ink-soft);font-size:13px;margin-bottom:14px">登入不會清除你的設定。你可以直接去分析貼文讓模型進化,或查看目前的模型。</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <a class="btn btn-primary" style="text-decoration:none;display:inline-block" href="analyze.html?tab=own">分析我的貼文</a>
+              <a class="btn btn-ghost" style="text-decoration:none;display:inline-block" href="model.html">查看我的模型</a>
+              <a class="btn btn-ghost" style="text-decoration:none;display:inline-block" href="onboarding.html#topics" onclick="skipToTopics(event)">生成短影音題材</a>
+            </div>
+            <button onclick="showFormAgain()" style="margin-top:16px;background:none;border:none;color:var(--ink-soft);font-size:12.5px;cursor:pointer;text-decoration:underline">重新設定 IP(會覆蓋現有定位)</button>
+          </div>`;
+        el.style.display = 'block';
+        document.getElementById('form-body').style.display = 'none';
+      }
+    }catch(e){ /* 讀取失敗就照常顯示表單 */ }
+  }
+
+  function showFormAgain(){
+    if(!confirm('重新設定會用新的定位覆蓋你現有的 IP,確定要重來?')) return;
+    document.getElementById('already-set').style.display = 'none';
+    document.getElementById('form-body').style.display = 'block';
+    window.scrollTo(0,0);
+  }
+
+  function skipToTopics(e){
+    e.preventDefault();
+    document.getElementById('topics-sub').textContent = '依你已設定的 IP 生成 3 個短影音主題與腳本。';
+    goStep('step-topics');
+    document.getElementById('topics').innerHTML = '';
+    genTopics();
   }
 
   function goStep(id){
