@@ -8,6 +8,7 @@
     ['model.html', '我的模型'],
     ['onboarding.html', '設定 IP'],
     ['analyze.html', '分析貼文'],
+    ['library.html', '庫存'],
     ['leaderboard.html', '排行榜'],
   ];
   const ADMIN_PAGE = ['admin.html', '後台'];

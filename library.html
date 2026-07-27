@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的庫存 — IP Studio</title>
+<style>
+  :root{--bg:#f5efe3;--card:#fffdf8;--card2:#efe7d5;--ink:#2f2a20;--ink-soft:#8b8069;--line:#e6dcc6;
+    --accent:#bd982f;--accent-soft:rgba(189,152,47,.15);--gold:#bd982f;--green:#4b9e6f;--red:#cf5b4e}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:"Noto Sans TC",-apple-system,"Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:660px;margin:0 auto;padding:20px 16px 80px}
+  h1{font-size:22px;margin-bottom:4px}
+  .sub{color:var(--ink-soft);font-size:13.5px;line-height:1.7;margin-bottom:18px}
+
+  .filters{display:flex;gap:8px;margin-bottom:16px}
+  .fbtn{flex:1;text-align:center;padding:9px 6px;border:1px solid var(--line);border-radius:10px;cursor:pointer;font-size:13px;font-weight:700;color:var(--ink-soft);background:var(--card)}
+  .fbtn.active{border-color:var(--accent);color:var(--ink);background:var(--accent-soft)}
+
+  .gen{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 8px rgba(120,100,40,.05)}
+  .gen>summary{list-style:none;cursor:pointer;padding:16px 18px;display:flex;align-items:center;gap:10px}
+  .gen>summary::-webkit-details-marker{display:none}
+  .gtag{font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap}
+  .gtag.topics{background:var(--accent-soft);color:var(--accent)}
+  .gtag.ip{background:rgba(75,158,111,.16);color:var(--green)}
+  .gtitle{font-weight:700;font-size:14.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gdate{color:var(--ink-soft);font-size:12px;white-space:nowrap}
+  .gbody{padding:0 18px 18px}
+
+  .topic{border-top:1px solid var(--line);padding-top:16px;margin-top:16px}
+  .topic:first-child{border-top:none;margin-top:0;padding-top:4px}
+  .t-title{font-size:16.5px;font-weight:800;margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+  .chip{font-size:11.5px;background:var(--card2);color:var(--ink-soft);padding:3px 9px;border-radius:999px}
+  .sec{margin-top:12px}
+  .sec .k{font-size:12.5px;font-weight:800;color:var(--accent);margin-bottom:5px}
+  .hookbox{background:var(--card2);border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.8}
+  .txt{font-size:13.5px;line-height:1.8;white-space:pre-wrap;color:var(--ink)}
+  .cap{background:var(--card2);border-radius:10px;padding:11px;font-size:13px;line-height:1.8;white-space:pre-wrap;position:relative}
+  .copy{margin-top:8px;background:none;border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;padding:5px 12px;font-size:12.5px;cursor:pointer}
+  .copy:hover{border-color:var(--accent);color:var(--accent)}
+  .why{margin-top:10px;font-size:12.5px;color:var(--ink-soft);line-height:1.7;border-left:2px solid var(--line);padding-left:10px}
+
+  .prop{border-top:1px solid var(--line);padding-top:14px;margin-top:14px}
+  .prop:first-child{border-top:none;margin-top:0;padding-top:4px}
+  .p-name{font-weight:800;font-size:15.5px;display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+  .p-mvs{font-size:12.5px;font-weight:800;color:var(--gold);white-space:nowrap}
+  .p-one{color:var(--ink);font-size:14px;margin-top:4px}
+  .p-meta{color:var(--ink-soft);font-size:12.5px;line-height:1.7;margin-top:6px}
+  .reco{background:var(--card2);border-radius:10px;padding:12px;font-size:13px;line-height:1.8;white-space:pre-wrap;margin-top:14px}
+
+  .loading{text-align:center;padding:44px 0;color:var(--ink-soft)}
+  .spin{width:30px;height:30px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;margin:0 auto 12px;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .empty{color:var(--ink-soft);font-size:14px;text-align:center;padding:36px 0;line-height:1.8}
+  .empty a{color:var(--accent)}
+  #toast{position:fixed;left:50%;bottom:32px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 22px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;z-index:99}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div id="topnav"></div>
+<div class="wrap">
+  <h1>📦 我的庫存</h1>
+  <p class="sub">你生成過的短影音題材與 IP 提案都會存在這裡,跳開頁面也不會不見。</p>
+
+  <div class="filters">
+    <div class="fbtn active" data-k="all" onclick="setFilter('all')">全部</div>
+    <div class="fbtn" data-k="topics" onclick="setFilter('topics')">短影音題材</div>
+    <div class="fbtn" data-k="ip_setup" onclick="setFilter('ip_setup')">IP 提案</div>
+  </div>
+
+  <div id="loading" class="loading"><div class="spin"></div>載入中…</div>
+  <div id="list"></div>
+</div>
+
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/nav.js"></script>
+<script>
+  let rows = [], filter = 'all';
+  function showLogin(){ location.href='index.html'; }
+  async function onLoggedIn(){ await load(); }
+
+  async function load(){
+    const { data, error } = await supabase.from('ipapp_generations')
+      .select('id,kind,output,created_at').eq('user_id', currentUser.user_id)
+      .order('created_at', { ascending:false });
+    document.getElementById('loading').style.display='none';
+    if(error){ document.getElementById('list').innerHTML='<div class="empty">載入失敗:'+esc(error.message)+'</div>'; return; }
+    rows = data||[]; render();
+  }
+
+  function setFilter(k){ filter=k; document.querySelectorAll('.fbtn').forEach(b=>b.classList.toggle('active',b.dataset.k===k)); render(); }
+
+  function render(){
+    const list = document.getElementById('list');
+    const items = rows.filter(r=>filter==='all'||r.kind===filter);
+    if(!items.length){ list.innerHTML='<div class="empty">還沒有生成紀錄。<br>去 <a href="onboarding.html">設定 IP / 生成短影音題材</a> 就會存進這裡。</div>'; return; }
+    list.innerHTML = items.map((r,idx)=>{
+      const isTopics = r.kind==='topics';
+      const tag = isTopics?'<span class="gtag topics">短影音題材</span>':'<span class="gtag ip">IP 提案</span>';
+      const title = isTopics ? topicsSummary(r.output) : ipSummary(r.output);
+      const open = idx===0 ? ' open' : '';
+      return `<details class="gen"${open}>
+        <summary>${tag}<span class="gtitle">${esc(title)}</span><span class="gdate">${fmtDate(r.created_at)}</span></summary>
+        <div class="gbody">${isTopics?renderTopics(r.output):renderIp(r.output)}</div>
+      </details>`;
+    }).join('');
+  }
+
+  function topicsSummary(o){ const t=(o?.topics||[]); return t.map(x=>x.title).filter(Boolean).slice(0,2).join('、')+(t.length>2?` 等 ${t.length} 支`:''); }
+  function ipSummary(o){ const p=(o?.proposals||[]); return p.map(x=>x.name||x.one_liner).filter(Boolean).join('、'); }
+
+  function renderTopics(o){
+    const topics=o?.topics||[];
+    if(!topics.length) return '<div class="txt">(無題材資料)</div>';
+    return topics.map((t,i)=>{
+      const chips=[t.hook_formula?('鉤子 '+t.hook_formula):'', t.bet_mechanism?('賭 '+t.bet_mechanism):'', t.length||'']
+        .filter(Boolean).map(c=>`<span class="chip">${esc(c)}</span>`).join('');
+      const hook = (t.hook_voice||t.hook_visual||t.hook_caption) ? `<div class="sec"><div class="k">Hook(0–3 秒)</div><div class="hookbox">${
+          [t.hook_voice?('🎙️ 口白:'+esc(t.hook_voice)):'', t.hook_visual?('🎬 畫面:'+esc(t.hook_visual)):'', t.hook_caption?('🔤 字卡:'+esc(t.hook_caption)):''].filter(Boolean).join('<br>')
+        }</div></div>` : '';
+      const body = t.body?`<div class="sec"><div class="k">主體</div><div class="txt">${esc(t.body)}</div></div>`:'';
+      const ending = t.ending?`<div class="sec"><div class="k">收尾 + CTA</div><div class="txt">${esc(t.ending)}</div></div>`:'';
+      const capId = `cap-${Math.random().toString(36).slice(2,8)}`;
+      const cap = t.caption?`<div class="sec"><div class="k">發文文案</div><div class="cap" id="${capId}">${esc(t.caption)}</div><button class="copy" onclick="copyText('${capId}')">複製文案</button></div>`:'';
+      const why = t.why?`<div class="why">為什麼這樣設計:${esc(t.why)}</div>`:'';
+      return `<div class="topic"><div class="t-title">${i+1}. ${esc(t.title||'未命名')}</div><div class="chips">${chips}</div>${hook}${body}${ending}${cap}${why}</div>`;
+    }).join('');
+  }
+
+  function renderIp(o){
+    const props=o?.proposals||[];
+    const cards = props.map(p=>{
+      const mvs=p.mvs||{};
+      const meta=[p.bio_first_line?('Bio:'+p.bio_first_line):'', p.archetype_name?('原型:'+p.archetype_name):'', p.method_name?('方法論:'+p.method_name):'']
+        .filter(Boolean).map(esc).join(' ｜ ');
+      const pinned=(p.pinned_three||[]).length?`<div class="p-meta">置頂三格:${esc((p.pinned_three||[]).join(' / '))}</div>`:'';
+      return `<div class="prop">
+        <div class="p-name"><span>${esc(p.name||'提案')}</span><span class="p-mvs">MVS ${mvs.score??'–'} ${esc(mvs.verdict? mvs.verdict.split('｜')[0]:'')}</span></div>
+        <div class="p-one">${esc(p.one_liner||'')}</div>
+        <div class="p-meta">${meta}</div>${pinned}
+      </div>`;
+    }).join('');
+    const reco = o?.recommendation?`<div class="reco">${esc(o.recommendation)}</div>`:'';
+    return cards+reco;
+  }
+
+  function copyText(id){
+    const el=document.getElementById(id); if(!el) return;
+    navigator.clipboard.writeText(el.textContent).then(()=>showToast('已複製文案')).catch(()=>showToast('複製失敗,請手動選取'));
+  }
+
+  function fmtDate(s){ const d=new Date(s); if(isNaN(d)) return ''; const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+  function esc(s){ return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  let _tt; function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(_tt); _tt=setTimeout(()=>t.classList.remove('show'),2600); }
+</script>
+</body>
+</html>
