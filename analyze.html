@@ -24,7 +24,10 @@
   .drop .ic{font-size:34px}
   .drop .t{margin-top:8px;font-weight:700}
   .drop .h{color:var(--ink-soft);font-size:12.5px;margin-top:4px}
-  #preview{max-width:100%;border-radius:12px;margin-top:14px;display:none}
+  #previews{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  #previews .thumb{position:relative}
+  #previews img{width:92px;height:92px;object-fit:cover;border-radius:10px;border:1px solid var(--line);display:block}
+  #previews .rm{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border:none;border-radius:999px;background:var(--ink);color:var(--bg);cursor:pointer;font-size:13px;line-height:1}
   input[type=file]{display:none}
 
   .btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px}
@@ -77,13 +80,13 @@
     <p class="sub" id="up-sub"></p>
     <label class="drop" for="file">
       <div class="ic">📷</div>
-      <div class="t">點這裡上傳截圖</div>
-      <div class="h">Threads 貼文截圖(含瀏覽/讚/留言最好)</div>
-      <img id="preview">
+      <div class="t">點這裡上傳截圖(1~3 張)</div>
+      <div class="h">Threads 貼文截圖;可分次拍(例:內文一張、成效數據一張),一起上傳更準</div>
     </label>
-    <input type="file" id="file" accept="image/*" onchange="onFile(event)">
+    <input type="file" id="file" accept="image/*" multiple onchange="onFile(event)">
+    <div id="previews"></div>
     <button id="btn-analyze" class="btn btn-primary" onclick="analyze()" disabled>開始分析</button>
-    <div class="cost-note">將消耗 1 點</div>
+    <div class="cost-note">1~3 張算同一篇,共消耗 1 點</div>
   </div>
 
   <!-- Step 確認抽取數據 -->
@@ -140,7 +143,7 @@
 <script src="js/api.js"></script>
 <script src="js/image.js"></script>
 <script>
-  let kind = 'own', imgB64 = null, phase1 = null;
+  let kind = 'own', imgB64s = [], phase1 = null;
 
   function showLogin(){ location.href='index.html'; }
   function onLoggedIn(){ document.querySelectorAll('.credits-num').forEach(el=>el.textContent=currentUser.credits); }
@@ -158,24 +161,30 @@
   function switchTab(k){ kind=k; applyTabUI(); resetToUpload(); }
 
   function goStep(id){ document.querySelectorAll('.step').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
-  function resetToUpload(){ imgB64=null; phase1=null; document.getElementById('file').value=''; document.getElementById('preview').style.display='none'; document.getElementById('btn-analyze').disabled=true; goStep('step-upload'); }
+  function resetToUpload(){ imgB64s=[]; phase1=null; document.getElementById('file').value=''; document.getElementById('previews').innerHTML=''; document.getElementById('btn-analyze').disabled=true; goStep('step-upload'); }
 
   async function onFile(e){
-    const f = e.target.files[0]; if(!f) return;
+    const files = [...e.target.files]; if(!files.length) return;
+    if(files.length > 3) showToast('最多 3 張,已取前 3 張');
     try{
-      imgB64 = await fileToBase64(f, 1000, 0.75);
-      const img = document.getElementById('preview');
-      img.src = 'data:image/jpeg;base64,'+imgB64; img.style.display='block';
-      document.getElementById('btn-analyze').disabled=false;
+      imgB64s = [];
+      for(const f of files.slice(0,3)){ imgB64s.push(await fileToBase64(f, 1000, 0.75)); }
+      renderPreviews();
+      document.getElementById('btn-analyze').disabled = imgB64s.length===0;
     }catch(err){ showToast('圖片讀取失敗'); }
   }
+  function renderPreviews(){
+    document.getElementById('previews').innerHTML = imgB64s.map((b,i)=>
+      `<div class="thumb"><img src="data:image/jpeg;base64,${b}"><button class="rm" onclick="removeImg(${i})" title="移除">×</button></div>`).join('');
+  }
+  function removeImg(i){ imgB64s.splice(i,1); renderPreviews(); document.getElementById('btn-analyze').disabled = imgB64s.length===0; }
 
   async function analyze(){
-    if(!imgB64){ showToast('請先上傳截圖'); return; }
-    document.getElementById('loading-msg').textContent='AI 讀取截圖並分析中…';
+    if(!imgB64s.length){ showToast('請先上傳截圖'); return; }
+    document.getElementById('loading-msg').textContent = imgB64s.length>1 ? `AI 讀取 ${imgB64s.length} 張截圖並分析中…` : 'AI 讀取截圖並分析中…';
     goStep('step-loading');
     try{
-      const d = await callFn('ipapp-analyze', { kind, image: imgB64 });
+      const d = await callFn('ipapp-analyze', { kind, images: imgB64s });
       phase1 = d;
       if(typeof d.credits==='number') setCredits(d.credits);
       renderConfirm(d);

@@ -5,9 +5,9 @@
 (function () {
   const PAGES = [
     ['index.html', '主控台'],
+    ['model.html', '我的模型'],
     ['onboarding.html', '設定 IP'],
     ['analyze.html', '分析貼文'],
-    ['model.html', '我的模型'],
     ['leaderboard.html', '排行榜'],
   ];
   const ADMIN_PAGE = ['admin.html', '後台'];
